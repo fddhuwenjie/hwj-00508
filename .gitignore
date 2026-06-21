@@ -1,0 +1,5 @@
+backend/node_modules/
+backend/data.db-shm
+backend/data.db-wal
+backend/data.db.backup
+.DS_Store

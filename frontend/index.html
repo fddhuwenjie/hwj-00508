@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>社区团购管理系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">
+        <h1>社区团购</h1>
+      </div>
+      <nav class="nav-menu">
+        <div class="nav-item active" data-module="dashboard">
+          <span class="nav-icon">📊</span>
+          <span>数据总览</span>
+        </div>
+        <div class="nav-item" data-module="products">
+          <span class="nav-icon">🥬</span>
+          <span>商品管理</span>
+        </div>
+        <div class="nav-item" data-module="orders">
+          <span class="nav-icon">📋</span>
+          <span>订单管理</span>
+        </div>
+        <div class="nav-item" data-module="sorting">
+          <span class="nav-icon">📦</span>
+          <span>分拣管理</span>
+        </div>
+        <div class="nav-item" data-module="delivery">
+          <span class="nav-icon">🚚</span>
+          <span>配送管理</span>
+        </div>
+        <div class="nav-item" data-module="aftersale">
+          <span class="nav-icon">🔄</span>
+          <span>售后退款</span>
+        </div>
+        <div class="nav-item" data-module="pickup-points">
+          <span class="nav-icon">🏠</span>
+          <span>自提点管理</span>
+        </div>
+        <div class="nav-item" data-module="delivery-staff">
+          <span class="nav-icon">👷</span>
+          <span>配送员管理</span>
+        </div>
+        <div class="nav-item" data-module="suppliers">
+          <span class="nav-icon">🏭</span>
+          <span>供应商管理</span>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="header">
+        <h2 id="page-title">数据总览</h2>
+        <div class="user-info">
+          <span>团长管理员</span>
+        </div>
+      </header>
+
+      <section class="content">
+        <div id="module-dashboard" class="module active"></div>
+        <div id="module-products" class="module"></div>
+        <div id="module-orders" class="module"></div>
+        <div id="module-sorting" class="module"></div>
+        <div id="module-delivery" class="module"></div>
+        <div id="module-aftersale" class="module"></div>
+        <div id="module-pickup-points" class="module"></div>
+        <div id="module-delivery-staff" class="module"></div>
+        <div id="module-suppliers" class="module"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">标题</h3>
+        <span class="close" id="modal-close">&times;</span>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/products.js"></script>
+  <script src="js/orders.js"></script>
+  <script src="js/sorting.js"></script>
+  <script src="js/delivery.js"></script>
+  <script src="js/aftersale.js"></script>
+  <script src="js/pickupPoints.js"></script>
+  <script src="js/deliveryStaff.js"></script>
+  <script src="js/suppliers.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
