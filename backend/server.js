@@ -18,7 +18,7 @@ const deliveryStaffRoutes = require('./routes/deliveryStaff');
 const supplierRoutes = require('./routes/suppliers');
 
 const app = express();
-const PORT = 8508;
+const PORT = process.env.PORT || 8508;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -45,6 +45,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message });
 });
 
-app.listen(PORT, () => {
-  console.log(`后端服务器运行在 http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`后端服务器运行在 http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { app, db };

@@ -247,7 +247,7 @@ function runSeed() {
         );
 
         const orderId = orderIndex + 1;
-        allOrders.push({ id: orderId, status, delivery_type: deliveryType, pickup_date: pickupDate, total_amount: totalAmount, user_id: userId });
+        allOrders.push({ id: orderId, status, delivery_type: deliveryType, pickup_date: pickupDate, total_amount: totalAmount, user_id: userId, items: orderItems });
 
         orderItems.forEach((item) => {
           orderItemStmt.run(
@@ -294,27 +294,17 @@ function runSeed() {
 
       const productMap = {};
       pickupOrders.forEach(order => {
-        const itemsInOrder = [];
-        for (let oi = 0; oi < orderIndex; oi++) {
-          if (allOrders[oi].id === order.id) {
-            const itemCount = Math.floor(Math.random() * 4) + 2;
-            const used = new Set();
-            for (let j = 0; j < itemCount; j++) {
-              let pIdx;
-              do {
-                pIdx = Math.floor(Math.random() * 30);
-              } while (used.has(pIdx) && used.size < 30);
-              used.add(pIdx);
-              const qty = Math.floor(Math.random() * 3) + 1;
-              const product = productsData[pIdx];
-              if (!productMap[pIdx + 1]) {
-                productMap[pIdx + 1] = { product_id: pIdx + 1, product_name: product.name, specification: product.specification, total_quantity: 0 };
-              }
-              productMap[pIdx + 1].total_quantity += qty;
-            }
-            break;
+        (order.items || []).forEach(it => {
+          if (!productMap[it.product_id]) {
+            productMap[it.product_id] = {
+              product_id: it.product_id,
+              product_name: it.product_name,
+              specification: it.specification,
+              total_quantity: 0
+            };
           }
-        }
+          productMap[it.product_id].total_quantity += it.quantity;
+        });
       });
 
       Object.values(productMap).forEach(item => {
@@ -326,7 +316,7 @@ function runSeed() {
     sortingItemStmt.finalize();
 
     console.log('开始插入配送单数据...');
-    const deliveryStatuses = ['pending', 'pending', 'delivering', 'delivering', 'delivering', 'delivered', 'delivered', 'delivered', 'delivered', 'failed'];
+    const deliveryStatuses = ['pending', 'pending', 'delivering', 'delivering', 'delivering', 'completed', 'completed', 'completed', 'completed', 'failed'];
     const deliveryStmt = db.prepare(
       `INSERT INTO deliveries (order_id, delivery_staff_id, status, start_time, end_time, remark)
        VALUES (?, ?, ?, ?, ?, ?)`
@@ -337,7 +327,7 @@ function runSeed() {
       const status = deliveryStatuses[idx % deliveryStatuses.length];
       const staffId = (idx % 3) + 1;
       const startTime = status !== 'pending' ? new Date().toISOString() : null;
-      const endTime = (status === 'delivered' || status === 'failed') ? new Date().toISOString() : null;
+      const endTime = (status === 'completed' || status === 'failed') ? new Date().toISOString() : null;
       const remark = status === 'failed' ? '客户不在家，配送失败' : null;
       deliveryStmt.run(order.id, staffId, status, startTime, endTime, remark);
     });
@@ -362,6 +352,8 @@ function runSeed() {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     const updateOrderStmt = db.prepare('UPDATE orders SET refund_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    const updateOrderItemRefundStmt = db.prepare('UPDATE order_items SET refund_quantity = ? WHERE order_id = ? AND product_id = ?');
+    const restoreStockStmt = db.prepare('UPDATE products SET stock = stock + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
 
     const aftersaleOrders = allOrders.filter(o =>
       ['completed', 'pending_pickup', 'paid', 'pending_sorting'].includes(o.status)
@@ -369,8 +361,22 @@ function runSeed() {
 
     for (let i = 0; i < aftersaleOrders.length; i++) {
       const order = aftersaleOrders[i];
-      const refundAmount = Math.round((order.total_amount * (0.3 + Math.random() * 0.5)) * 100) / 100;
-      const auditRemark = aftersaleStatuses[i] === 'approved' ? '审核通过，已退款' : (aftersaleStatuses[i] === 'rejected' ? '不符合退款条件' : null);
+      const isApproved = aftersaleStatuses[i] === 'approved';
+      let refundAmount;
+      let fullyRefunded = false;
+
+      if (isApproved && order.items && order.items.length > 0) {
+        const item = order.items[0];
+        const refundQty = Math.min(1, item.quantity);
+        refundAmount = Math.round(item.price * refundQty * 100) / 100;
+        fullyRefunded = order.items.length === 1 && refundQty >= item.quantity;
+        updateOrderItemRefundStmt.run(refundQty, order.id, item.product_id);
+        restoreStockStmt.run(refundQty, item.product_id);
+      } else {
+        refundAmount = Math.round((order.total_amount * (0.3 + Math.random() * 0.5)) * 100) / 100;
+      }
+
+      const auditRemark = isApproved ? '审核通过，已退款' : (aftersaleStatuses[i] === 'rejected' ? '不符合退款条件' : null);
       const auditedAt = aftersaleStatuses[i] !== 'pending' ? new Date().toISOString() : null;
 
       aftersaleStmt.run(
@@ -379,13 +385,15 @@ function runSeed() {
         refundAmount, aftersaleStatuses[i], auditRemark, auditedAt
       );
 
-      if (aftersaleStatuses[i] === 'approved') {
-        const newStatus = refundAmount >= order.total_amount ? 'refunded' : order.status;
+      if (isApproved) {
+        const newStatus = fullyRefunded ? 'refunded' : order.status;
         updateOrderStmt.run(refundAmount, newStatus, order.id);
       }
     }
     aftersaleStmt.finalize();
     updateOrderStmt.finalize();
+    updateOrderItemRefundStmt.finalize();
+    restoreStockStmt.finalize();
 
     db.run('PRAGMA foreign_keys = ON');
 

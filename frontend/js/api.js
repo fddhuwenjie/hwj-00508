@@ -44,7 +44,6 @@ const statusMap = {
   refunded: '已退款',
   pending: '待处理',
   delivering: '配送中',
-  delivered: '已送达',
   failed: '失败',
   approved: '已通过',
   rejected: '已拒绝',

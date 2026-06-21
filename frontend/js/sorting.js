@@ -190,7 +190,7 @@ const sortingModule = {
     let ordersHtml = '';
     if (sortingOrder.orders && sortingOrder.orders.length > 0) {
       ordersHtml = '<h4 style="margin: 20px 0 12px; font-size: 14px;">关联订单</h4>';
-      ordersHtml += '<table><thead><tr><th>订单号</th><th>用户</th><th>联系电话</th><th>金额</th></tr></thead><tbody>';
+      ordersHtml += '<table><thead><tr><th>订单号</th><th>用户</th><th>联系电话</th><th>金额</th><th>状态</th><th>操作</th></tr></thead><tbody>';
       sortingOrder.orders.forEach(order => {
         ordersHtml += `
           <tr>
@@ -198,6 +198,10 @@ const sortingModule = {
             <td>${order.nickname || '-'}</td>
             <td>${order.user_phone || '-'}</td>
             <td>¥${formatMoney(order.total_amount)}</td>
+            <td><span class="status-badge status-${order.status}">${statusMap[order.status] || order.status}</span></td>
+            <td>
+              <button class="btn btn-sm btn-default" onclick="sortingModule.viewReceipt(${order.id})">查看小票</button>
+            </td>
           </tr>
         `;
       });
@@ -284,6 +288,78 @@ const sortingModule = {
     } else {
       showToast(res.message || '操作失败', 'error');
     }
+  },
+
+  async viewReceipt(orderId) {
+    const res = await api.get('/orders/' + orderId);
+    if (!res.success) {
+      showToast(res.message || '获取订单详情失败', 'error');
+      return;
+    }
+    this.showReceipt(res.data);
+  },
+
+  showReceipt(order) {
+    const items = order.items || [];
+    const itemsRows = items.map(it => {
+      const refund = it.refund_quantity || 0;
+      const realQty = it.quantity - refund;
+      return `
+        <tr>
+          <td>${it.product_name}<div style="font-size:11px;color:#666;">${it.specification || ''}</div></td>
+          <td class="right">${it.quantity}</td>
+          ${refund > 0 ? `<td class="right">-${refund}</td>` : '<td class="right">0</td>'}
+          <td class="right">¥${formatMoney(it.price)}</td>
+          <td class="right">¥${formatMoney(it.price * realQty)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const refundAmount = parseFloat(order.refund_amount || 0);
+    const payable = order.total_amount - refundAmount;
+
+    const receiptHtml = `
+      <div class="receipt-sheet" id="receipt-sheet">
+        <h3>社区团购 · 购物小票</h3>
+        <div class="receipt-divider"></div>
+        <div class="receipt-row"><span>订单号</span><span>${order.order_no}</span></div>
+        <div class="receipt-row"><span>用户</span><span>${order.username || order.nickname || '-'}</span></div>
+        <div class="receipt-row"><span>电话</span><span>${order.user_phone || '-'}</span></div>
+        <div class="receipt-row"><span>提货日期</span><span>${order.pickup_date || '-'}</span></div>
+        <div class="receipt-row"><span>状态</span><span>${statusMap[order.status] || order.status}</span></div>
+        <div class="receipt-divider"></div>
+        <table>
+          <thead>
+            <tr><th>商品</th><th class="right">数量</th><th class="right">退款</th><th class="right">单价</th><th class="right">小计</th></tr>
+          </thead>
+          <tbody>${itemsRows}</tbody>
+        </table>
+        <div class="receipt-divider"></div>
+        <div class="receipt-row"><span>商品总额</span><span>¥${formatMoney(order.total_amount)}</span></div>
+        ${refundAmount > 0 ? `<div class="receipt-row"><span>退款金额</span><span>-¥${formatMoney(refundAmount)}</span></div>` : ''}
+        <div class="receipt-row"><span>应付金额</span><span><strong>¥${formatMoney(payable)}</strong></span></div>
+        ${order.pickup_code ? `<div class="receipt-divider"></div><div class="receipt-row"><span>自提核销码</span><span><strong>${order.pickup_code}</strong></span></div>` : ''}
+        ${order.remark ? `<div class="receipt-row"><span>备注</span><span>${order.remark}</span></div>` : ''}
+      </div>
+    `;
+
+    const footerContent = `
+      <button class="btn btn-default" onclick="hideModal()">关闭</button>
+      <button class="btn btn-primary" onclick="sortingModule.printReceipt()">打印小票</button>
+    `;
+
+    showModal('订单小票', receiptHtml, footerContent);
+  },
+
+  printReceipt() {
+    const sheet = document.getElementById('receipt-sheet');
+    if (!sheet) return;
+    const printArea = document.createElement('div');
+    printArea.className = 'receipt-print-area';
+    printArea.innerHTML = sheet.innerHTML;
+    document.body.appendChild(printArea);
+    window.print();
+    document.body.removeChild(printArea);
   },
 
   async completeSorting(id) {

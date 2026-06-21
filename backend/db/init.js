@@ -1,7 +1,8 @@
 const db = require('./database');
 
-db.serialize(() => {
-  db.run(`
+function createTables(database) {
+  database.serialize(() => {
+    database.run(`
     CREATE TABLE IF NOT EXISTS suppliers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -11,7 +12,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
+    database.run(`
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -30,7 +31,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
+    database.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
@@ -42,7 +43,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
+    database.run(`
     CREATE TABLE IF NOT EXISTS carts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -54,7 +55,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
+    database.run(`
     CREATE TABLE IF NOT EXISTS pickup_points (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -66,7 +67,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
+    database.run(`
     CREATE TABLE IF NOT EXISTS delivery_staff (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -76,7 +77,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
+    database.run(`
     CREATE TABLE IF NOT EXISTS orders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_no TEXT NOT NULL UNIQUE,
@@ -100,7 +101,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
+    database.run(`
     CREATE TABLE IF NOT EXISTS order_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_id INTEGER NOT NULL,
@@ -117,7 +118,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
+    database.run(`
     CREATE TABLE IF NOT EXISTS deliveries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_id INTEGER NOT NULL,
@@ -132,7 +133,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
+    database.run(`
     CREATE TABLE IF NOT EXISTS sorting_orders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       sorting_no TEXT NOT NULL UNIQUE,
@@ -142,7 +143,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
+    database.run(`
     CREATE TABLE IF NOT EXISTS sorting_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       sorting_order_id INTEGER NOT NULL,
@@ -157,7 +158,7 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
+    database.run(`
     CREATE TABLE IF NOT EXISTS after_sales (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_id INTEGER NOT NULL,
@@ -175,7 +176,13 @@ db.serialize(() => {
     )
   `);
 
-  console.log('数据库表创建完成');
-});
+    console.log('数据库表创建完成');
+  });
+}
 
-db.close();
+module.exports = { createTables };
+
+if (require.main === module) {
+  createTables(db);
+  db.close();
+}

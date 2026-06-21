@@ -1,5 +1,6 @@
 const pageTitleMap = {
   'dashboard': '数据总览',
+  'shopping': '用户购物',
   'products': '商品管理',
   'orders': '订单管理',
   'sorting': '分拣管理',
@@ -31,6 +32,11 @@ function initModule(moduleName) {
     case 'dashboard':
       if (typeof dashboard !== 'undefined' && dashboard.init) {
         dashboard.init();
+      }
+      break;
+    case 'shopping':
+      if (typeof shoppingModule !== 'undefined' && shoppingModule.init) {
+        shoppingModule.init();
       }
       break;
     case 'products':

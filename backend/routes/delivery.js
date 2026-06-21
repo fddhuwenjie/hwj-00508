@@ -119,63 +119,78 @@ router.post('/', (req, res) => {
           db.run('ROLLBACK');
           return res.json({ success: false, message: '该订单不是配送订单' });
         }
-        if (order.status !== 'paid' && order.status !== 'pending_delivery') {
+        if (order.status !== 'paid') {
           db.run('ROLLBACK');
           return res.json({ success: false, message: '订单状态不支持创建配送单' });
         }
 
-        db.get('SELECT * FROM delivery_staff WHERE id = ?', [delivery_staff_id], (err, staff) => {
-          if (err) {
-            db.run('ROLLBACK');
-            return res.json({ success: false, message: err.message });
-          }
-          if (!staff) {
-            db.run('ROLLBACK');
-            return res.json({ success: false, message: '配送员不存在' });
-          }
-          if (staff.status !== 'active') {
-            db.run('ROLLBACK');
-            return res.json({ success: false, message: '配送员已停用' });
-          }
-
-          const insertSql = `
-            INSERT INTO deliveries (order_id, delivery_staff_id, status)
-            VALUES (?, ?, 'pending')
-          `;
-
-          db.run(insertSql, [order_id, delivery_staff_id], function(err) {
+        db.get(
+          "SELECT * FROM deliveries WHERE order_id = ? AND status IN ('pending','delivering')",
+          [order_id],
+          (err, activeDelivery) => {
             if (err) {
               db.run('ROLLBACK');
               return res.json({ success: false, message: err.message });
             }
+            if (activeDelivery) {
+              db.run('ROLLBACK');
+              return res.json({ success: false, message: '该订单已有进行中的配送单' });
+            }
 
-            const deliveryId = this.lastID;
+            db.get('SELECT * FROM delivery_staff WHERE id = ?', [delivery_staff_id], (err, staff) => {
+              if (err) {
+                db.run('ROLLBACK');
+                return res.json({ success: false, message: err.message });
+              }
+              if (!staff) {
+                db.run('ROLLBACK');
+                return res.json({ success: false, message: '配送员不存在' });
+              }
+              if (staff.status !== 'active') {
+                db.run('ROLLBACK');
+                return res.json({ success: false, message: '配送员已停用' });
+              }
 
-            db.run(
-              'UPDATE orders SET delivery_staff_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-              [delivery_staff_id, 'pending_delivery', order_id],
-              function(err) {
+              const insertSql = `
+            INSERT INTO deliveries (order_id, delivery_staff_id, status)
+            VALUES (?, ?, 'pending')
+          `;
+
+              db.run(insertSql, [order_id, delivery_staff_id], function(err) {
                 if (err) {
                   db.run('ROLLBACK');
                   return res.json({ success: false, message: err.message });
                 }
 
-                db.run('COMMIT', (err) => {
-                  if (err) {
-                    return res.json({ success: false, message: err.message });
-                  }
+                const deliveryId = this.lastID;
 
-                  db.get('SELECT * FROM deliveries WHERE id = ?', [deliveryId], (err, delivery) => {
+                db.run(
+                  'UPDATE orders SET delivery_staff_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                  [delivery_staff_id, order_id],
+                  function(err) {
                     if (err) {
+                      db.run('ROLLBACK');
                       return res.json({ success: false, message: err.message });
                     }
-                    res.json({ success: true, data: delivery });
-                  });
-                });
-              }
-            );
-          });
-        });
+
+                    db.run('COMMIT', (err) => {
+                      if (err) {
+                        return res.json({ success: false, message: err.message });
+                      }
+
+                      db.get('SELECT * FROM deliveries WHERE id = ?', [deliveryId], (err, delivery) => {
+                        if (err) {
+                          return res.json({ success: false, message: err.message });
+                        }
+                        res.json({ success: true, data: delivery });
+                      });
+                    });
+                  }
+                );
+              });
+            });
+          }
+        );
       });
     });
   });
@@ -213,29 +228,18 @@ router.put('/:id/start', (req, res) => {
               return res.json({ success: false, message: err.message });
             }
 
-            db.run(
-              "UPDATE orders SET status = 'delivering', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-              [delivery.order_id],
-              function(err) {
+            db.run('COMMIT', (err) => {
+              if (err) {
+                return res.json({ success: false, message: err.message });
+              }
+
+              db.get('SELECT * FROM deliveries WHERE id = ?', [id], (err, updatedDelivery) => {
                 if (err) {
-                  db.run('ROLLBACK');
                   return res.json({ success: false, message: err.message });
                 }
-
-                db.run('COMMIT', (err) => {
-                  if (err) {
-                    return res.json({ success: false, message: err.message });
-                  }
-
-                  db.get('SELECT * FROM deliveries WHERE id = ?', [id], (err, updatedDelivery) => {
-                    if (err) {
-                      return res.json({ success: false, message: err.message });
-                    }
-                    res.json({ success: true, data: updatedDelivery });
-                  });
-                });
-              }
-            );
+                res.json({ success: true, data: updatedDelivery });
+              });
+            });
           }
         );
       });

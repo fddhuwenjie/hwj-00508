@@ -82,7 +82,8 @@ router.get('/:id', (req, res) => {
         SELECT o.*, u.nickname, u.phone as user_phone
         FROM orders o
         LEFT JOIN users u ON o.user_id = u.id
-        WHERE o.pickup_date = ? AND o.delivery_type = 'pickup' AND o.status = 'pending_sorting'
+        WHERE o.pickup_date = ? AND o.delivery_type = 'pickup' 
+          AND o.status IN ('pending_sorting','pending_pickup','completed','refunded')
         ORDER BY o.created_at DESC
       `;
 
@@ -447,6 +448,7 @@ router.put('/item/:itemId/shortage', (req, res) => {
                 orderItems.forEach(orderItem => {
                   const availableRefund = orderItem.quantity - (orderItem.refund_quantity || 0);
                   const refundQty = Math.min(remainingShortage, availableRefund);
+                  remainingShortage -= refundQty;
 
                   if (refundQty <= 0) {
                     itemsProcessed++;
@@ -456,7 +458,6 @@ router.put('/item/:itemId/shortage', (req, res) => {
                     return;
                   }
 
-                  const refundAmount = refundQty * orderItem.price;
                   const newRefundQty = (orderItem.refund_quantity || 0) + refundQty;
 
                   db.run(
@@ -468,7 +469,6 @@ router.put('/item/:itemId/shortage', (req, res) => {
                       }
 
                       orderIdsToUpdate.add(orderItem.id);
-                      remainingShortage -= refundQty;
                       itemsProcessed++;
 
                       if (itemsProcessed === orderItems.length) {
